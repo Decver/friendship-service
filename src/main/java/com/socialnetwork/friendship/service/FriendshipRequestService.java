@@ -2,16 +2,19 @@ package com.socialnetwork.friendship.service;
 
 
 import com.socialnetwork.friendship.event.model.FriendRequestSentEvent;
-import com.socialnetwork.friendship.event.publisher.FriendEventPublisher;
-import com.socialnetwork.friendship.event.publisher.KafkaFriendEventPublisher;
+import com.socialnetwork.friendship.event.model.FriendshipStatus;
+import com.socialnetwork.friendship.event.publisher.FriendshipRequestEventProducer;
 import com.socialnetwork.friendship.model.FriendshipRequest;
 import com.socialnetwork.friendship.repository.FriendshipRequestRepository;
-import com.socialnetwork.friendship.service.cashe.FriendCacheService;
+import com.socialnetwork.friendship.service.cashe.RedisFriendCacheService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -19,51 +22,75 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class FriendshipRequestService {
 
-    private final FriendshipRequestRepository repository;
-    private final KafkaFriendEventPublisher eventPublisher;
-    private final FriendCacheService cacheService;
+    private final FriendshipRequestRepository friendshipRequestRepository;
+    private final RedisFriendCacheService redisFriendCacheService;
+    private final FriendshipRequestEventProducer friendshipRequestEventProducer;
 
-    /**
-     * @param senderId   UUID отправителя
-     * @param receiverId UUID получателя
-     * @return сохранённая заявка
-     */
-    public FriendshipRequest sendRequest(UUID senderId, UUID receiverId) {
-        log.info("Отправка заявки в друзья от {} к {}", senderId, receiverId);
+    @Transactional
+    public FriendshipRequest sendFriendRequest(UUID senderId, UUID receiverId) {
+        log.info("Новый запрос дружбы: {} → {}", senderId, receiverId);
 
-        validateRequest(senderId, receiverId);
+        if (senderId.equals(receiverId)) {
+            throw new IllegalArgumentException("Нельзя отправить запрос самому себе");
+        }
+
+        Optional<FriendshipRequest> existing = friendshipRequestRepository
+                .findBySenderIdAndReceiverId(senderId, receiverId);
+
+        if (existing.isPresent()) {
+            log.warn("Запрос дружбы уже существует: {} → {}", senderId, receiverId);
+            return existing.get();
+        }
 
         FriendshipRequest request = new FriendshipRequest();
         request.setSenderId(senderId);
         request.setReceiverId(receiverId);
-        request.setStatus(FriendshipRequest.Status.PENDING);
+        request.setStatus(FriendshipStatus.PENDING);
         request.setCreatedAt(Instant.now());
 
-        FriendshipRequest saved = repository.save(request);
+        FriendshipRequest saved = friendshipRequestRepository.save(request);
+        log.info("✅ Запрос дружбы сохранён: {}", saved);
+
+        redisFriendCacheService.addPendingRequest(receiverId, saved);
 
         FriendRequestSentEvent event = new FriendRequestSentEvent(
-                senderId, receiverId, saved.getCreatedAt()
+                saved.getSenderId(),
+                saved.getReceiverId(),
+                saved.getCreatedAt()
         );
-        eventPublisher.publishFriendRequestSent(event);
-
-        cacheService.setPendingRequest(senderId, receiverId);
+        friendshipRequestEventProducer.sendFriendRequestEvent(event);
 
         return saved;
     }
 
-    private void validateRequest(UUID senderId, UUID receiverId) {
-        if (senderId.equals(receiverId)) {
-            throw new IllegalArgumentException("Нельзя отправить заявку самому себе");
+    @Transactional
+    public FriendshipRequest respondToFriendRequest(Long requestId, boolean accept) {
+        FriendshipRequest request = friendshipRequestRepository.findById(requestId)
+                .orElseThrow(() -> new EntityNotFoundException("Запрос не найден"));
+
+        if (request.getStatus() != FriendshipStatus.PENDING) {
+            throw new IllegalStateException("Запрос уже обработан");
         }
 
-        if (cacheService.isPendingRequest(senderId, receiverId)) {
-            throw new IllegalStateException("Заявка уже отправлена");
+        request.setStatus(accept ? FriendshipStatus.ACCEPTED : FriendshipStatus.REJECTED);
+        FriendshipRequest updated = friendshipRequestRepository.save(request);
+
+                if (accept) {
+            redisFriendCacheService.saveFriends(request.getSenderId(), request.getReceiverId());
+        } else {
+            redisFriendCacheService.removePendingRequest(request.getReceiverId(), requestId);
         }
 
-        repository.findBySenderIdAndReceiverId(senderId, receiverId).ifPresent(req -> {
-            if (req.getStatus() == FriendshipRequest.Status.PENDING) {
-                throw new IllegalStateException("Заявка уже существует");
-            }
-        });
+        FriendRequestSentEvent event = new FriendRequestSentEvent(
+                updated.getSenderId(),
+                updated.getReceiverId(),
+                updated.getCreatedAt()
+        );
+        friendshipRequestEventProducer.sendFriendRequestEvent(event);
+
+        log.info("Ответ на запрос дружбы: id={}, статус={}", requestId, updated.getStatus());
+        return updated;
     }
 }
+
+

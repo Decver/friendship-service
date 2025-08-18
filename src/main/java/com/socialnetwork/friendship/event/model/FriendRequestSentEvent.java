@@ -11,6 +11,6 @@ import java.util.UUID;
 public class FriendRequestSentEvent {
     private UUID senderId;
     private UUID receiverId;
-    private Instant timestamp;
+    private Instant createdAt;
 }
 

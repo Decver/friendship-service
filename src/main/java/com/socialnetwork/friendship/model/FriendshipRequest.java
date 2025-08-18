@@ -1,5 +1,6 @@
 package com.socialnetwork.friendship.model;
 
+import com.socialnetwork.friendship.event.model.FriendshipStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -19,11 +20,7 @@ public class FriendshipRequest {
     private UUID receiverId;
 
     @Enumerated(EnumType.STRING)
-    private Status status;
+    private FriendshipStatus status;
 
     private Instant createdAt;
-
-    public enum Status {
-        PENDING, ACCEPTED, REJECTED
-    }
 }
