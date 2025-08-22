@@ -1,4 +1,4 @@
-package com.socialnetwork.friendship.event.model;
+package com.socialnetwork.friendship.event;
 
 import lombok.*;
 

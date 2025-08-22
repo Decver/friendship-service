@@ -1,9 +1,9 @@
 package com.socialnetwork.friendship.service;
 
 
-import com.socialnetwork.friendship.event.model.FriendRequestSentEvent;
-import com.socialnetwork.friendship.event.model.FriendshipStatus;
-import com.socialnetwork.friendship.event.publisher.FriendshipRequestEventProducer;
+import com.socialnetwork.friendship.event.FriendRequestSentEvent;
+import com.socialnetwork.friendship.model.FriendshipStatus;
+import com.socialnetwork.friendship.kafka.producer.FriendshipRequestEventProducer;
 import com.socialnetwork.friendship.model.FriendshipRequest;
 import com.socialnetwork.friendship.repository.FriendshipRequestRepository;
 import com.socialnetwork.friendship.service.cashe.RedisFriendCacheService;
@@ -90,6 +90,12 @@ public class FriendshipRequestService {
 
         log.info("Ответ на запрос дружбы: id={}, статус={}", requestId, updated.getStatus());
         return updated;
+    }
+
+    public void deleteAllFriendshipsForUser(Long userId) {
+        log.info("Удаление всех дружеских связей для пользователя {}", userId);
+        friendshipRequestRepository.deleteBySenderIdOrReceiverId(userId);
+        redisFriendCacheService.removeUserFromCache(userId);
     }
 }
 

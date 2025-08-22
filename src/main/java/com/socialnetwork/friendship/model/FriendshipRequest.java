@@ -1,6 +1,5 @@
 package com.socialnetwork.friendship.model;
 
-import com.socialnetwork.friendship.event.model.FriendshipStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 

@@ -1,9 +1,8 @@
-package com.socialnetwork.friendship.event.publisher;
+package com.socialnetwork.friendship.kafka.producer;
 
-import com.socialnetwork.friendship.event.model.FriendRequestSentEvent;
+import com.socialnetwork.friendship.event.FriendRequestSentEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 

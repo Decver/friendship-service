@@ -1,6 +1,6 @@
-package com.socialnetwork.friendship.event.Listener;
+package com.socialnetwork.friendship.kafka.Listener;
 
-import com.socialnetwork.friendship.event.model.FriendRequestSentEvent;
+import com.socialnetwork.friendship.event.FriendRequestSentEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

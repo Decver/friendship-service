@@ -1,6 +1,6 @@
 package com.socialnetwork.friendship.config;
 
-import com.socialnetwork.friendship.event.model.FriendRequestSentEvent;
+import com.socialnetwork.friendship.event.FriendRequestSentEvent;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-public class KafkaConfig {
+public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, FriendRequestSentEvent> producerFactory() {

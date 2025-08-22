@@ -23,23 +23,26 @@ public class RedisFriendCacheService {
         return "friends:list:" + userId;
     }
 
-    // Добавление запроса в pending
     public void addPendingRequest(UUID receiverId, FriendshipRequest request) {
         redisTemplate.opsForList().rightPush(keyPending(receiverId), request);
         log.info("💾 Redis: добавлен pending запрос для {}", receiverId);
     }
 
-    // Удаление запроса из pending
     public void removePendingRequest(UUID receiverId, Long requestId) {
         redisTemplate.opsForList().remove(keyPending(receiverId), 1, requestId);
         log.info("🗑 Redis: удалён запрос {} из pending для {}", requestId, receiverId);
     }
 
-    // Сохранение дружбы
     public void saveFriends(UUID user1, UUID user2) {
         redisTemplate.opsForSet().add(keyFriends(user1), user2.toString());
         redisTemplate.opsForSet().add(keyFriends(user2), user1.toString());
         log.info("🤝 Redis: сохранена дружба {} ↔ {}", user1, user2);
+    }
+
+    public void removeUserFromCache(Long userId) {
+        redisTemplate.delete("friends:" + userId);
+        redisTemplate.delete("pending:" + userId);
+        log.info("Пользователь {} удалён из кеша Redis", userId);
     }
 }
 
